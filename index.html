@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viga Benkelman</title>
+
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+</head>
+<body>
+
+<div class="container" id="relatorio">
+
+    <h1>Viga Benkelman</h1>
+
+    <input id="obra" placeholder="Obra">
+
+    <input id="limite" type="number" placeholder="Limite do Projeto">
+
+    <select id="k">
+        <option value="1">1σ</option>
+        <option value="1.29">1,29σ</option>
+        <option value="1.65">1,65σ</option>
+    </select>
+
+    <hr>
+
+    <h3>Nova Medição</h3>
+
+    <input id="estaca" placeholder="Estaca">
+
+    <select id="posicao">
+        <option value="Eixo">Eixo</option>
+        <option value="Bordo Direito">Bordo Direito</option>
+        <option value="Bordo Esquerdo">Bordo Esquerdo</option>
+    </select>
+
+    <input id="l0" type="number" placeholder="L0">
+
+    <input id="l25" type="number" placeholder="L25">
+
+    <input id="lf" type="number" placeholder="LF">
+
+    <button onclick="addRow()">Adicionar</button>
+
+    <hr>
+
+    <table id="tbl">
+
+        <thead>
+            <tr>
+                <th>Estaca</th>
+                <th>Posição</th>
+                <th>D0</th>
+                <th>D25</th>
+                <th>R = D25/D0</th>
+                <th>Diagnóstico</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+
+        <tbody></tbody>
+
+    </table>
+
+    <br>
+
+    <div id="stats"></div>
+
+    <hr>
+
+    <h2>Gráfico - Eixo</h2>
+    <canvas id="graficoEixo"></canvas>
+
+    <hr>
+
+    <h2>Gráfico - Bordo Direito</h2>
+    <canvas id="graficoBD"></canvas>
+
+    <hr>
+
+    <h2>Gráfico - Bordo Esquerdo</h2>
+    <canvas id="graficoBE"></canvas>
+
+    <br>
+
+    <button onclick="gerarPDF()">Gerar PDF</button>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
