@@ -1,99 +1,494 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Viga Benkelman</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Ensaios e Taxas - Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --bg: #f1f5f9;
+            --dark: #0f172a;
+            --slate: #64748b;
+        }
 
-<link rel="stylesheet" href="style.css">
+        body { font-family: sans-serif; background-color: var(--bg); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .container { background: white; width: 100%; max-width: 600px; padding: 20px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); box-sizing: border-box; }
+        h2 { text-align: center; color: #1e293b; font-size: 1.2rem; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 10px; text-transform: uppercase; }
+        
+        /* Menu Principal */
+        .menu-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 15px; }
+        @media(min-width: 400px) { .menu-grid { grid-template-columns: 1fr 1fr; } }
+        .btn-menu { padding: 15px; background: var(--dark); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; text-align: center; transition: background 0.2s; }
+        .btn-menu:hover { background: var(--primary); }
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        /* Módulos (Escondidos por padrão) */
+        .modulo { display: none; }
+        .modulo.active { display: block; }
+        
+        .section-title { font-size: 0.85rem; color: var(--primary); font-weight: bold; margin: 15px 0 8px 0; text-transform: uppercase; border-left: 3px solid var(--primary); padding-left: 5px; }
+        
+        .button-group { display: flex; gap: 8px; margin-bottom: 15px; }
+        .btn-toggle { flex: 1; padding: 10px; border: none; border-radius: 6px; background: #cbd5e1; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-toggle.active { background: var(--primary); color: white; }
 
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .input-group { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 3px; color: #475569; font-size: 11px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; background: #fdfdfd; }
+        
+        .btn-acao { width: 100%; padding: 12px; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        .btn-calc { background: var(--dark); }
+        .btn-calc:hover { background: var(--primary); }
+        .btn-print { background: var(--slate); }
+        .btn-pdf { background: #0284c7; }
+        .btn-del { background: var(--danger); padding: 4px 8px; font-size: 11px; border-radius: 4px; }
+        
+        .btn-voltar-menu { width: 100%; padding: 10px; background: #475569; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 15px; cursor: pointer; text-transform: uppercase; }
+
+        .resultado-box { margin-top: 20px; padding: 15px; border-radius: 8px; display: none; background: #f8fafc; border: 1px solid #e2e8f0; }
+        .card-result { font-size: 13px; line-height: 1.7; color: #334155; }
+        .status { text-align: center; font-size: 18px; font-weight: bold; margin-top: 10px; padding: 10px; border-radius: 6px; }
+        .passou { background: #dcfce7; color: var(--success); border: 1px solid var(--success); }
+        .reprovou { background: #fee2e2; color: var(--danger); border: 1px solid var(--danger); }
+
+        /* Tabelas e Gráficos */
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+        th, td { padding: 8px; border: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; }
+        .chart-container { width: 100%; margin-top: 15px; }
+
+        /* Modo Print/Relatório */
+        .print-mode { background: white; padding: 0; }
+        .print-mode .container { box-shadow: none; width: 100vw; max-width: none; border-radius: 0; }
+        .print-mode input { border: none !important; padding: 2px 0 !important; background: transparent !important; font-weight: bold; color: black; }
+        .print-mode .no-print { display: none !important; }
+        #btnVoltarPrint { display: none; }
+        .print-mode #btnVoltarPrint { display: block !important; width: 100%; max-width: 450px; padding: 12px; background: var(--danger); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: bold; margin-bottom: 10px; cursor: pointer; text-transform: uppercase; }
+    </style>
 </head>
-<body>
+<body id="mainBody">
 
-<div class="container" id="relatorio">
+    <button id="btnVoltarPrint" onclick="desativarModoPrint()">← Voltar para Edição</button>
 
-    <h1>Viga Benkelman</h1>
+    <div class="container" id="appContent">
+        
+        <div id="moduloMenu" class="modulo active">
+            <h2>Painel Rodoviário Pro</h2>
+            <div class="menu-grid">
+                <button class="btn-menu" onclick="navegarPara('moduloInSitu')">Ensaio In Situ<br><small>(Densidade)</small></button>
+                <button class="btn-menu" onclick="navegarPara('moduloBenkelman')">Viga Benkelman</button>
+                <button class="btn-menu" onclick="navegarPara('moduloCal')">Taxa de Cal</button>
+                <button class="btn-menu" onclick="navegarPara('moduloCimento')">Taxa de Cimento</button>
+                <button class="btn-menu" onclick="navegarPara('moduloPintura')">Pintura de Ligação</button>
+            </div>
+        </div>
 
-    <input id="obra" placeholder="Obra">
+        <div id="moduloInSitu" class="modulo">
+            <button class="btn-voltar-menu no-print" onclick="navegarPara('moduloMenu')">← Voltar ao Menu</button>
+            <h2>Ensaio de Compactação / Densidade</h2>
+            
+            <div class="section-title">Identificação</div>
+            <div class="grid">
+                <div class="input-group"><label>Número de Registro</label><input type="text" id="registro" placeholder="Ex: 001/24"></div>
+                <div class="input-group"><label>Data</label><input type="date" id="dataEnsaio"></div>
+            </div>
+            <div class="grid">
+                <div class="input-group"><label>Estaca Inicial</label><input type="text" id="estacaIni" placeholder="0+000"></div>
+                <div class="input-group"><label>Estaca Final</label><input type="text" id="estacaFin" placeholder="0+020"></div>
+            </div>
+            <div class="button-group no-print">
+                <button class="btn-toggle active" id="btnAterro" onclick="setModoInSitu('aterro')">Aterro (±3%)</button>
+                <button class="btn-toggle" id="btnCFT" onclick="setModoInSitu('cft')">CFT (±2%)</button>
+            </div>
 
-    <input id="limite" type="number" placeholder="Limite do Projeto">
+            <div class="section-title">Dados de Laboratório</div>
+            <div class="grid">
+                <div class="input-group"><label>Dens. Máx. Seca (Lab)</label><input type="number" id="densMax" placeholder="g/cm³" step="0.001"></div>
+                <div class="input-group"><label>Umidade Ótima (%)</label><input type="number" id="umiOti" placeholder="%" step="0.1"></div>
+            </div>
 
-    <select id="k">
-        <option value="1">1σ</option>
-        <option value="1.29">1,29σ</option>
-        <option value="1.65">1,65σ</option>
-    </select>
+            <div class="section-title">Frasco de Areia</div>
+            <div class="input-group"><label>Densidade da Areia (g/cm³)</label><input type="number" id="densAreia" value="1.418" step="0.001"></div>
+            <div class="grid">
+                <div class="input-group"><label>P. Inicial (g)</label><input type="number" id="pFrascoAntes" value="7000"></div>
+                <div class="input-group"><label>P. Final (g)</label><input type="number" id="pFrascoDepois"></div>
+            </div>
+            <div class="input-group"><label>Peso Areia Funil (g)</label><input type="number" id="pFunil" value="0"></div>
 
-    <hr>
+            <div class="section-title">Solo e Umidade</div>
+            <div class="input-group"><label>Peso Solo Úmido Total (g)</label><input type="number" id="pSoloUmidoFuro"></div>
+            <div class="grid">
+                <div class="input-group"><label>P. Amostra Úmida + Tara (g)</label><input type="number" id="pAmostraUmida" value="100"></div>
+                <div class="input-group"><label>P. Amostra Seca + Tara (g)</label><input type="number" id="pAmostraSeca"></div>
+            </div>
+            <div class="input-group"><label>Peso da Tara (g)</label><input type="number" id="pTara" value="0"></div>
 
-    <h3>Nova Medição</h3>
+            <button class="btn-acao btn-calc no-print" onclick="calcularInSitu()">CALCULAR E VERIFICAR</button>
+            
+            <div id="resultadoInSitu" class="resultado-box">
+                <div class="card-result" id="detalhesInSitu"></div>
+                <div id="statusFinalInSitu" class="status"></div>
+            </div>
+            <button id="btnPrintInSitu" style="display:none;" class="btn-acao btn-print no-print" onclick="ativarModoPrint()">PREPARAR PARA PRINT</button>
+        </div>
 
-    <input id="estaca" placeholder="Estaca">
+        <div id="moduloBenkelman" class="modulo">
+            <button class="btn-voltar-menu no-print" onclick="navegarPara('moduloMenu')">← Voltar ao Menu</button>
+            <h2>Ensaio Viga Benkelman</h2>
+            
+            <div id="relatorio">
+                <div class="section-title">Nova Medição</div>
+                <div class="grid">
+                    <div class="input-group"><label>Estaca</label><input type="text" id="estaca" placeholder="Ex: 10+00"></div>
+                    <div class="input-group">
+                        <label>Posição</label>
+                        <select id="posicao">
+                            <option value="Eixo">Eixo</option>
+                            <option value="Bordo Direito">Bordo Direito</option>
+                            <option value="Bordo Esquerdo">Bordo Esquerdo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid">
+                    <div class="input-group"><label>Leitura Inicial (L0)</label><input type="number" id="l0" step="0.01"></div>
+                    <div class="input-group"><label>Leitura 25cm (L25)</label><input type="number" id="l25" step="0.01"></div>
+                </div>
+                <div class="input-group"><label>Leitura Final (Lf)</label><input type="number" id="lf" step="0.01"></div>
+                <div class="input-group"><label>Constante Estatística (k)</label><input type="number" id="k" value="1.0" step="0.1"></div>
 
-    <select id="posicao">
-        <option value="Eixo">Eixo</option>
-        <option value="Bordo Direito">Bordo Direito</option>
-        <option value="Bordo Esquerdo">Bordo Esquerdo</option>
-    </select>
+                <button class="btn-acao btn-calc no-print" onclick="addRowBenkelman()">ADICIONAR MEDIÇÃO</button>
 
-    <input id="l0" type="number" placeholder="L0">
+                <div class="section-title">Estatísticas Gerais</div>
+                <div id="stats" class="card-result" style="background:#f8fafc; padding:10px; border-radius:6px; min-height: 20px;">
+                    Nenhuma medição adicionada.
+                </div>
 
-    <input id="l25" type="number" placeholder="L25">
+                <div class="table-responsive">
+                    <table id="tbl">
+                        <thead>
+                            <tr>
+                                <th>Estaca</th>
+                                <th>Posição</th>
+                                <th>D0</th>
+                                <th>D25</th>
+                                <th>R</th>
+                                <th>Diag.</th>
+                                <th class="no-print">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
 
-    <input id="lf" type="number" placeholder="LF">
+                <div class="chart-container"><canvas id="graficoEixo"></canvas></div>
+                <div class="chart-container"><canvas id="graficoBD"></canvas></div>
+                <div class="chart-container"><canvas id="graficoBE"></canvas></div>
+            </div>
 
-    <button onclick="addRow()">Adicionar</button>
+            <button class="btn-acao btn-pdf no-print" onclick="gerarPDFBenkelman()">GERAR PDF RELATÓRIO</button>
+        </div>
 
-    <hr>
+        <div id="moduloCal" class="modulo">
+            <button class="btn-voltar-menu" onclick="navegarPara('moduloMenu')">← Voltar ao Menu</button>
+            <h2>Cálculo de Taxa de Cal (Bandeja)</h2>
+            <div class="grid">
+                <div class="input-group"><label>Comprimento da Bandeja (m)</label><input type="number" id="calComp" value="0.5"></div>
+                <div class="input-group"><label>Largura da Bandeja (m)</label><input type="number" id="calLarg" value="0.5"></div>
+            </div>
+            <div class="input-group"><label>Peso da Bandeja Vazia (g)</label><input type="number" id="calTara" value="0"></div>
+            <div class="input-group"><label>Peso Bandeja + Cal Retida (g)</label><input type="number" id="calCheia"></div>
+            
+            <button class="btn-acao btn-calc" onclick="calcularTaxaCal()">Calcular Taxa</button>
+            <div id="resultadoCal" class="resultado-box"></div>
+        </div>
 
-    <table id="tbl">
+        <div id="moduloCimento" class="modulo">
+            <button class="btn-voltar-menu" onclick="navegarPara('moduloMenu')">← Voltar ao Menu</button>
+            <h2>Cálculo de Taxa de Cimento</h2>
+            <div class="grid">
+                <div class="input-group"><label>Lado da Bandeja (m)</label><input type="number" id="cimLado" value="0.5"></div>
+                <div class="input-group"><label>Peso Úmido Retido (g)</label><input type="number" id="cimPeso"></div>
+            </div>
+            <div class="input-group"><label>Umidade do Solo/Mistura (%)</label><input type="number" id="cimUmid" value="0"></div>
+            
+            <button class="btn-acao btn-calc" onclick="calcularTaxaCimento()">Calcular Taxa</button>
+            <div id="resultadoCimento" class="resultado-box"></div>
+        </div>
 
-        <thead>
+        <div id="moduloPintura" class="modulo">
+            <button class="btn-voltar-menu" onclick="navegarPara('moduloMenu')">← Voltar ao Menu</button>
+            <h2>Taxa de Pintura de Ligação</h2>
+            <div class="input-group"><label>Massa do Papel/Chapa Alvo (g)</label><input type="number" id="pinTara" value="100"></div>
+            <div class="input-group"><label>Massa do Alvo + Emulsão (g)</label><input type="number" id="pinCheio"></div>
+            <div class="grid">
+                <div class="input-group"><label>Área do Alvo ($m^2$)</label><input type="number" id="pinArea" value="0.25"></div>
+                <div class="input-group"><label>Proporção de Água na Diluição (%)</label><input type="number" id="pinDiluicao" value="0" placeholder="Ex: 50 para 1:1"></div>
+            </div>
+            
+            <button class="btn-acao btn-calc" onclick="calcularPintura()">Calcular Taxa Residual</button>
+            <div id="resultadoPintura" class="resultado-box"></div>
+        </div>
+
+    </div>
+
+<script>
+    // ==========================================
+    // NAVEGAÇÃO E GLOBAL
+    // ==========================================
+    function navegarPara(idModulo) {
+        document.querySelectorAll('.modulo').forEach(mod => mod.classList.remove('active'));
+        document.getElementById(idModulo).classList.add('active');
+        // Corrige tamanho de gráficos se renderizados ocultos
+        if(idModulo === 'moduloBenkelman') atualizarGraficos();
+    }
+
+    document.getElementById('dataEnsaio').valueAsDate = new Date();
+
+    function ativarModoPrint() { document.getElementById('mainBody').classList.add('print-mode'); window.scrollTo(0, 0); }
+    function desativarModoPrint() { document.getElementById('mainBody').classList.remove('print-mode'); }
+
+    // ==========================================
+    // LÓGICA: ENSAIO IN SITU (DENSIDADE)
+    // ==========================================
+    let modoInSituAtual = 'aterro';
+    function setModoInSitu(modo) {
+        modoInSituAtual = modo;
+        document.getElementById('btnAterro').classList.toggle('active', modo === 'aterro');
+        document.getElementById('btnCFT').classList.toggle('active', modo === 'cft');
+    }
+
+    function calcularInSitu() {
+        const dMaxLab = parseFloat(document.getElementById('densMax').value);
+        const hOtima = parseFloat(document.getElementById('umiOti').value);
+        const densAreia = parseFloat(document.getElementById('densAreia').value);
+        const pAntes = parseFloat(document.getElementById('pFrascoAntes').value);
+        const pDepois = parseFloat(document.getElementById('pFrascoDepois').value);
+        const pFunil = parseFloat(document.getElementById('pFunil').value);
+        const pSUmidoFuro = parseFloat(document.getElementById('pSoloUmidoFuro').value);
+        const pAUmida = parseFloat(document.getElementById('pAmostraUmida').value);
+        const pASeca = parseFloat(document.getElementById('pAmostraSeca').value);
+        const pTara = parseFloat(document.getElementById('pTara').value);
+
+        if ([dMaxLab, hOtima, densAreia, pAntes, pDepois, pSUmidoFuro, pAUmida, pASeca].some(isNaN)) {
+            alert("Preencha todos os campos corretamente.");
+            return;
+        }
+
+        const umidadeReal = ((pAUmida - pASeca) / (pASeca - pTara)) * 100;
+        const massaAreiaFuro = (pAntes - pDepois) - pFunil;
+        const volumeFuro = massaAreiaFuro / densAreia;
+        const densidadeUmidaCampo = pSUmidoFuro / volumeFuro;
+        const densidadeSecaCampo = densidadeUmidaCampo / (1 + (umidadeReal / 100));
+        const gc = (densidadeSecaCampo * 100000 / dMaxLab);
+        const desvio = umidadeReal - hOtima;
+        const tolerancia = (modoInSituAtual === 'aterro') ? 3 : 2;
+
+        document.getElementById('resultadoInSitu').style.display = 'block';
+        document.getElementById('btnPrintInSitu').style.display = 'block';
+        
+        const dataInput = document.getElementById('dataEnsaio').value;
+        const dataFormatada = dataInput ? dataInput.split('-').reverse().join('/') : '---';
+
+        document.getElementById('detalhesInSitu').innerHTML = `
+            <strong>REGISTRO:</strong> ${document.getElementById('registro').value || '---'} | <strong>DATA:</strong> ${dataFormatada}<br>
+            <strong>ESTACAS:</strong> ${document.getElementById('estacaIni').value || '0'} a ${document.getElementById('estacaFin').value || '0'}<br>
+            <hr style="border:0; border-top:1px solid #e2e8f0; margin:8px 0">
+            <strong>Volume do Furo:</strong> ${volumeFuro.toFixed(2)} cm³<br>
+            <strong>Umidade Real:</strong> ${umidadeReal.toFixed(2)}%<br>
+            <strong>Densidade Seca Campo:</strong> ${densidadeSecaCampo.toFixed(3)} g/cm³<br>
+            <strong>Grau de Compactação:</strong> ${gc.toFixed(4)}%<br>
+            <strong>Desvio Umidade:</strong> ${desvio.toFixed(2)}% (Margem: ±${tolerancia}%)
+        `;
+
+        const aprovadoGC = gc >= 100;
+        const aprovadoUmi = Math.abs(desvio) <= tolerancia;
+        const divStatus = document.getElementById('statusFinalInSitu');
+
+        if (aprovadoGC && aprovadoUmi) {
+            divStatus.className = 'status passou';
+            divStatus.innerHTML = "APROVADO ✅";
+        } else {
+            divStatus.className = 'status reprovou';
+            divStatus.innerHTML = `REPROVADO ❌<br><small style="font-size:11px">${!aprovadoGC ? '- GC < 100% ' : ''}${!aprovadoUmi ? '- Umidade fora da margem' : ''}</small>`;
+        }
+    }
+
+    // ==========================================
+    // LÓGICA: VIGA BENKELMAN
+    // ==========================================
+    let dadosBenkelman = [];
+
+    const configChart = (title) => ({
+        type: 'line',
+        data: { labels: [], datasets: [{ label: title, data: [], borderColor: '#2563eb', fill: false }] },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    const chartEixo = new Chart(document.getElementById('graficoEixo'), configChart('Deflexão D0 - Eixo'));
+    const chartBD = new Chart(document.getElementById('graficoBD'), configChart('Deflexão D0 - Bordo Dir.'));
+    const chartBE = new Chart(document.getElementById('graficoBE'), configChart('Deflexão D0 - Bordo Esq.'));
+
+    function addRowBenkelman() {
+        const est = document.getElementById('estaca').value;
+        const posicao = document.getElementById('posicao').value;
+        const l0 = +document.getElementById('l0').value;
+        const l25 = +document.getElementById('l25').value;
+        const lf = +document.getElementById('lf').value;
+
+        if(!est || isNaN(l0) || isNaN(l25) || isNaN(lf)) { alert("Preencha a estaca e leituras da viga."); return; }
+
+        const d0 = (l0 - lf) * 2;
+        const d25 = (l25 - lf) * 2;
+        const r = d0 ? d25 / d0 : 0;
+        const diag = r < 0.3 ? 'Superficial' : r < 0.6 ? 'Intermediário' : 'Profundo';
+
+        dadosBenkelman.push({ est, posicao, d0, d25, r, diag });
+
+        renderTabelaBenkelman();
+        atualizarEstatisticasBenkelman();
+        atualizarGraficos();
+
+        document.getElementById('estaca').value = '';
+        document.getElementById('l0').value = '';
+        document.getElementById('l25').value = '';
+        document.getElementById('lf').value = '';
+    }
+
+    function renderTabelaBenkelman() {
+        const tbody = document.querySelector('#tbl tbody');
+        tbody.innerHTML = '';
+        dadosBenkelman.forEach((item, index) => {
+            tbody.innerHTML += `
             <tr>
-                <th>Estaca</th>
-                <th>Posição</th>
-                <th>D0</th>
-                <th>D25</th>
-                <th>R = D25/D0</th>
-                <th>Diagnóstico</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
+                <td>${item.est}</td>
+                <td>${item.posicao}</td>
+                <td>${item.d0.toFixed(2)}</td>
+                <td>${item.d25.toFixed(2)}</td>
+                <td>${item.r.toFixed(2)}</td>
+                <td>${item.diag}</td>
+                <td class="no-print"><button class="btn-del" onclick="excluirLinhaBenkelman(${index})">🗑️</button></td>
+            </tr>`;
+        });
+    }
 
-        <tbody></tbody>
+    function excluirLinhaBenkelman(index) {
+        dadosBenkelman.splice(index, 1);
+        renderTabelaBenkelman();
+        atualizarEstatisticasBenkelman();
+        atualizarGraficos();
+    }
 
-    </table>
+    function atualizarEstatisticasBenkelman() {
+        if (dadosBenkelman.length === 0) {
+            document.getElementById('stats').innerHTML = 'Nenhuma medição adicionada.';
+            return;
+        }
+        const valores = dadosBenkelman.map(x => x.d0);
+        const media = valores.reduce((a, b) => a + b, 0) / valores.length;
+        const dp = Math.sqrt(valores.reduce((s, x) => s + (x - media) ** 2, 0) / valores.length);
+        const cv = (dp / media) * 100;
+        const k = +document.getElementById('k').value;
+        const dc = media + (k * dp);
 
-    <br>
+        document.getElementById('stats').innerHTML = `
+            <b>Média:</b> ${media.toFixed(2)} | 
+            <b>DP:</b> ${dp.toFixed(2)} | 
+            <b>CV:</b> ${cv.toFixed(2)}% | 
+            <b>Dc:</b> ${dc.toFixed(2)}
+        `;
+    }
 
-    <div id="stats"></div>
+    function atualizarGraficos() {
+        const filtrar = (pos) => dadosBenkelman.filter(x => x.posicao === pos);
+        atualizarGraficoInstancia(chartEixo, filtrar('Eixo'));
+        atualizarGraficoInstancia(chartBD, filtrar('Bordo Direito'));
+        atualizarGraficoInstancia(chartBE, filtrar('Bordo Esquerdo'));
+    }
 
-    <hr>
+    function atualizarGraficoInstancia(chart, lista) {
+        chart.data.labels = lista.map(x => x.est);
+        chart.data.datasets[0].data = lista.map(x => x.d0);
+        chart.update();
+    }
 
-    <h2>Gráfico - Eixo</h2>
-    <canvas id="graficoEixo"></canvas>
+    async function gerarPDFBenkelman() {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const canvas = await html2canvas(document.getElementById('relatorio'));
+        const img = canvas.toDataURL('image/png');
+        const largura = 210;
+        const altura = (canvas.height * largura) / canvas.width;
+        pdf.addImage(img, 'PNG', 0, 0, largura, altura);
+        pdf.save('relatorio_viga_benkelman.pdf');
+    }
 
-    <hr>
+    // ==========================================
+    // LÓGICA: NOVAS TAXAS (CAL, CIMENTO, PINTURA)
+    // ==========================================
+    function calcularTaxaCal() {
+        const comp = parseFloat(document.getElementById('calComp').value);
+        const larg = parseFloat(document.getElementById('calLarg').value);
+        const tara = parseFloat(document.getElementById('calTara').value);
+        const cheia = parseFloat(document.getElementById('calCheia').value);
 
-    <h2>Gráfico - Bordo Direito</h2>
-    <canvas id="graficoBD"></canvas>
+        if(isNaN(comp) || isNaN(larg) || isNaN(tara) || isNaN(cheia)) { alert("Preencha todos os campos."); return; }
+        
+        const area = comp * larg;
+        const massaCal = cheia - tara;
+        const taxa = massaCal / area; // g/m²
+        const taxaKg = taxa / 1000; // kg/m²
 
-    <hr>
+        const res = document.getElementById('resultadoCal');
+        res.style.display = "block";
+        res.innerHTML = `<strong>Massa de Cal Retida:</strong> ${massaCal.toFixed(1)} g<br>
+                         <strong>Área da Bandeja:</strong> ${area.toFixed(3)} m²<br>
+                         <div class="status passou" style="font-size:15px">Taxa Calculada: ${taxaKg.toFixed(3)} kg/m²</div>`;
+    }
 
-    <h2>Gráfico - Bordo Esquerdo</h2>
-    <canvas id="graficoBE"></canvas>
+    function calcularTaxaCimento() {
+        const lado = parseFloat(document.getElementById('cimLado').value);
+        const peso = parseFloat(document.getElementById('cimPeso').value);
+        const umid = parseFloat(document.getElementById('cimUmid').value);
 
-    <br>
+        if(isNaN(lado) || isNaN(peso) || isNaN(umid)) { alert("Preencha todos os campos."); return; }
 
-    <button onclick="gerarPDF()">Gerar PDF</button>
+        const area = lado * lado;
+        const pesoSeco = peso / (1 + (umid / 100));
+        const taxaKg = (pesoSeco / area) / 1000;
 
-</div>
+        const res = document.getElementById('resultadoCimento');
+        res.style.display = "block";
+        res.innerHTML = `<strong>Área de Coleta:</strong> ${area.toFixed(3)} m²<br>
+                         <strong>Massa Seca Ajustada:</strong> ${pesoSeco.toFixed(1)} g<br>
+                         <div class="status passou" style="font-size:15px">Taxa de Cimento Seco: ${taxaKg.toFixed(3)} kg/m²</div>`;
+    }
 
-<script src="app.js"></script>
+    function calcularPintura() {
+        const tara = parseFloat(document.getElementById('pinTara').value);
+        const cheio = parseFloat(document.getElementById('pinCheio').value);
+        const area = parseFloat(document.getElementById('pinArea').value);
+        const diluicao = parseFloat(document.getElementById('pinDiluicao').value);
 
+        if(isNaN(tara) || isNaN(cheio) || isNaN(area) || isNaN(diluicao)) { alert("Preencha todos os campos."); return; }
+
+        const massaTotalEmulsao = cheio - tara; 
+        const taxaTotalKg = (massaTotalEmulsao / area) / 1000; // kg/m²
+        // Desconta a água se houver diluição no campo (ex: 50% de água significa 50% de emulsão pura)
+        const taxaResidual = taxaTotalKg * (1 - (diluicao / 100)); 
+
+        const res = document.getElementById('resultadoPintura');
+        res.style.display = "block";
+        res.innerHTML = `<strong>Massa de Emulsão Úmida:</strong> ${massaTotalEmulsao.toFixed(1)} g<br>
+                         <strong>Taxa Aplicada na pista:</strong> ${taxaTotalKg.toFixed(3)} kg/m²<br>
+                         <div class="status passou" style="font-size:15px">Taxa Com Desconto de Diluição: ${taxaResidual.toFixed(3)} kg/m²</div>`;
+    }
+</script>
 </body>
 </html>
