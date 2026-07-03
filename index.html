@@ -33,8 +33,9 @@
         
         .section-title { font-size: 0.85rem; color: var(--primary); font-weight: bold; margin: 15px 0 8px 0; text-transform: uppercase; border-left: 3px solid var(--primary); padding-left: 5px; }
         
-        .button-group { display: flex; gap: 8px; margin-bottom: 15px; }
-        .btn-toggle { flex: 1; padding: 10px; border: none; border-radius: 6px; background: #cbd5e1; cursor: pointer; font-weight: bold; font-size: 13px; }
+        /* Modificado para suportar 4 botões em grid responsiva */
+        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        .btn-toggle { padding: 10px; border: none; border-radius: 6px; background: #cbd5e1; cursor: pointer; font-weight: bold; font-size: 13px; text-align: center; }
         .btn-toggle.active { background: var(--primary); color: white; }
 
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -103,9 +104,12 @@
                 <div class="input-group"><label>Estaca Inicial</label><input type="text" id="estacaIni" placeholder="0+000"></div>
                 <div class="input-group"><label>Estaca Final</label><input type="text" id="estacaFin" placeholder="0+020"></div>
             </div>
+            
             <div class="button-group no-print">
                 <button class="btn-toggle active" id="btnAterro" onclick="setModoInSitu('aterro')">Aterro (±3%)</button>
                 <button class="btn-toggle" id="btnCFT" onclick="setModoInSitu('cft')">CFT (±2%)</button>
+                <button class="btn-toggle" id="btnSubBase" onclick="setModoInSitu('subbase')">Sub-base (±1.5%)</button>
+                <button class="btn-toggle" id="btnBase" onclick="setModoInSitu('base')">Base (±1%)</button>
             </div>
 
             <div class="section-title">Dados de Laboratório</div>
@@ -228,7 +232,7 @@
             <div class="input-group"><label>Massa do Papel/Chapa Alvo (g)</label><input type="number" id="pinTara" value="100"></div>
             <div class="input-group"><label>Massa do Alvo + Emulsão (g)</label><input type="number" id="pinCheio"></div>
             <div class="grid">
-                <div class="input-group"><label>Área do Alvo ($m^2$)</label><input type="number" id="pinArea" value="0.25"></div>
+                <div class="input-group"><label>Área do Alvo (m²)</label><input type="number" id="pinArea" value="0.25"></div>
                 <div class="input-group"><label>Proporção de Água na Diluição (%)</label><input type="number" id="pinDiluicao" value="0" placeholder="Ex: 50 para 1:1"></div>
             </div>
             
@@ -245,13 +249,12 @@
     function navegarPara(idModulo) {
         document.querySelectorAll('.modulo').forEach(mod => mod.classList.remove('active'));
         document.getElementById(idModulo).classList.add('active');
-        // Corrige tamanho de gráficos se renderizados ocultos
         if(idModulo === 'moduloBenkelman') atualizarGraficos();
     }
 
     document.getElementById('dataEnsaio').valueAsDate = new Date();
 
-    function ativarModoPrint() { document.getElementById('mainBody').classList.add('print-mode'); window.scrollTo(0, 0); }
+    function activarModoPrint() { document.getElementById('mainBody').classList.add('print-mode'); window.scrollTo(0, 0); }
     function desativarModoPrint() { document.getElementById('mainBody').classList.remove('print-mode'); }
 
     // ==========================================
@@ -260,8 +263,16 @@
     let modoInSituAtual = 'aterro';
     function setModoInSitu(modo) {
         modoInSituAtual = modo;
+        
+        // Atualiza as classes ativas de todos os 4 botões
         document.getElementById('btnAterro').classList.toggle('active', modo === 'aterro');
         document.getElementById('btnCFT').classList.toggle('active', modo === 'cft');
+        document.getElementById('btnSubBase').classList.toggle('active', modo === 'subbase');
+        document.getElementById('btnBase').classList.toggle('active', modo === 'base');
+        
+        // Esconde os blocos de resultados anteriores ao mudar o tipo de camada
+        document.getElementById('resultadoInSitu').style.display = 'none';
+        document.getElementById('btnPrintInSitu').style.display = 'none';
     }
 
     function calcularInSitu() {
@@ -288,7 +299,12 @@
         const densidadeSecaCampo = densidadeUmidaCampo / (1 + (umidadeReal / 100));
         const gc = (densidadeSecaCampo * 100000 / dMaxLab);
         const desvio = umidadeReal - hOtima;
-        const tolerancia = (modoInSituAtual === 'aterro') ? 3 : 2;
+        
+        // Definição da tolerância conforme a camada selecionada
+        let tolerancia = 3;
+        if (modoInSituAtual === 'cft') tolerancia = 2;
+        else if (modoInSituAtual === 'subbase') tolerancia = 1.5;
+        else if (modoInSituAtual === 'base') tolerancia = 1;
 
         document.getElementById('resultadoInSitu').style.display = 'block';
         document.getElementById('btnPrintInSitu').style.display = 'block';
@@ -442,8 +458,8 @@
         
         const area = comp * larg;
         const massaCal = cheia - tara;
-        const taxa = massaCal / area; // g/m²
-        const taxaKg = taxa / 1000; // kg/m²
+        const taxa = massaCal / area; 
+        const taxaKg = taxa / 1000; 
 
         const res = document.getElementById('resultadoCal');
         res.style.display = "block";
@@ -479,8 +495,7 @@
         if(isNaN(tara) || isNaN(cheio) || isNaN(area) || isNaN(diluicao)) { alert("Preencha todos os campos."); return; }
 
         const massaTotalEmulsao = cheio - tara; 
-        const taxaTotalKg = (massaTotalEmulsao / area) / 1000; // kg/m²
-        // Desconta a água se houver diluição no campo (ex: 50% de água significa 50% de emulsão pura)
+        const taxaTotalKg = (massaTotalEmulsao / area) / 1000; 
         const taxaResidual = taxaTotalKg * (1 - (diluicao / 100)); 
 
         const res = document.getElementById('resultadoPintura');
