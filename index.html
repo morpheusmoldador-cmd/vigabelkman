@@ -33,7 +33,6 @@
         
         .section-title { font-size: 0.85rem; color: var(--primary); font-weight: bold; margin: 15px 0 8px 0; text-transform: uppercase; border-left: 3px solid var(--primary); padding-left: 5px; }
         
-        /* Modificado para suportar 4 botões em grid responsiva */
         .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
         .btn-toggle { padding: 10px; border: none; border-radius: 6px; background: #cbd5e1; cursor: pointer; font-weight: bold; font-size: 13px; text-align: center; }
         .btn-toggle.active { background: var(--primary); color: white; }
@@ -57,6 +56,10 @@
         .status { text-align: center; font-size: 18px; font-weight: bold; margin-top: 10px; padding: 10px; border-radius: 6px; }
         .passou { background: #dcfce7; color: var(--success); border: 1px solid var(--success); }
         .reprovou { background: #fee2e2; color: var(--danger); border: 1px solid var(--danger); }
+
+        /* Estilos específicos para status da tabela */
+        .td-passou { color: var(--success); font-weight: bold; }
+        .td-reprovou { color: var(--danger); font-weight: bold; }
 
         /* Tabelas e Gráficos */
         .table-responsive { width: 100%; overflow-x: auto; margin-top: 15px; }
@@ -148,6 +151,12 @@
             <h2>Ensaio Viga Benkelman</h2>
             
             <div id="relatorio">
+                <div class="section-title">Configurações de Controle</div>
+                <div class="grid">
+                    <div class="input-group"><label>Deflexão Limite Admissível</label><input type="number" id="defLim" placeholder="Ex: 40" value="40" step="0.1"></div>
+                    <div class="input-group"><label>Constante Estatística (k)</label><input type="number" id="k" value="1.0" step="0.1"></div>
+                </div>
+
                 <div class="section-title">Nova Medição</div>
                 <div class="grid">
                     <div class="input-group"><label>Estaca</label><input type="text" id="estaca" placeholder="Ex: 10+00"></div>
@@ -162,10 +171,9 @@
                 </div>
                 <div class="grid">
                     <div class="input-group"><label>Leitura Inicial (L0)</label><input type="number" id="l0" step="0.01"></div>
-                    <div class="input-group"><label>Leitura 25cm (L25)</label><input type="number" id="l25" step="0.01"></div>
+                    <div class="input-group"><label>Leitura 25cm (L25) <small style="color:var(--slate)">(Opcional)</small></label><input type="number" id="l25" placeholder="Deixe vazio se não houver" step="0.01"></div>
                 </div>
                 <div class="input-group"><label>Leitura Final (Lf)</label><input type="number" id="lf" step="0.01"></div>
-                <div class="input-group"><label>Constante Estatística (k)</label><input type="number" id="k" value="1.0" step="0.1"></div>
 
                 <button class="btn-acao btn-calc no-print" onclick="addRowBenkelman()">ADICIONAR MEDIÇÃO</button>
 
@@ -184,6 +192,7 @@
                                 <th>D25</th>
                                 <th>R</th>
                                 <th>Diag.</th>
+                                <th>Status</th>
                                 <th class="no-print">Ação</th>
                             </tr>
                         </thead>
@@ -264,13 +273,11 @@
     function setModoInSitu(modo) {
         modoInSituAtual = modo;
         
-        // Atualiza as classes ativas de todos os 4 botões
         document.getElementById('btnAterro').classList.toggle('active', modo === 'aterro');
         document.getElementById('btnCFT').classList.toggle('active', modo === 'cft');
         document.getElementById('btnSubBase').classList.toggle('active', modo === 'subbase');
         document.getElementById('btnBase').classList.toggle('active', modo === 'base');
         
-        // Esconde os blocos de resultados anteriores ao mudar o tipo de camada
         document.getElementById('resultadoInSitu').style.display = 'none';
         document.getElementById('btnPrintInSitu').style.display = 'none';
     }
@@ -300,7 +307,6 @@
         const gc = (densidadeSecaCampo * 100000 / dMaxLab);
         const desvio = umidadeReal - hOtima;
         
-        // Definição da tolerância conforme a camada selecionada
         let tolerancia = 3;
         if (modoInSituAtual === 'cft') tolerancia = 2;
         else if (modoInSituAtual === 'subbase') tolerancia = 1.5;
@@ -355,17 +361,40 @@
         const est = document.getElementById('estaca').value;
         const posicao = document.getElementById('posicao').value;
         const l0 = +document.getElementById('l0').value;
-        const l25 = +document.getElementById('l25').value;
+        const l25Input = document.getElementById('l25').value;
         const lf = +document.getElementById('lf').value;
+        const defLim = parseFloat(document.getElementById('defLim').value) || 0;
 
-        if(!est || isNaN(l0) || isNaN(l25) || isNaN(lf)) { alert("Preencha a estaca e leituras da viga."); return; }
+        if(!est || isNaN(l0) || isNaN(lf)) { alert("Preencha a estaca, L0 e Lf da viga."); return; }
 
         const d0 = (l0 - lf) * 2;
-        const d25 = (l25 - lf) * 2;
-        const r = d0 ? d25 / d0 : 0;
-        const diag = r < 0.3 ? 'Superficial' : r < 0.6 ? 'Intermediário' : 'Profundo';
+        
+        // Tratamento do L25 Opcional
+        let d25 = "---";
+        let r = "---";
+        let diag = "---";
 
-        dadosBenkelman.push({ est, posicao, d0, d25, r, diag });
+        if(l25Input.trim() !== "" && !isNaN(l25Input)) {
+            const l25 = parseFloat(l25Input);
+            d25 = (l25 - lf) * 2;
+            r = d0 ? d25 / d0 : 0;
+            diag = r < 0.3 ? 'Superficial' : r < 0.6 ? 'Intermediário' : 'Profundo';
+        }
+
+        // Verificação de Aprovado / Reprovado individual da estaca
+        const statusEstaca = d0 <= defLim ? "APROVADO ✅" : "REPROVADO ❌";
+        const classeStatus = d0 <= defLim ? "td-passou" : "td-reprovou";
+
+        dadosBenkelman.push({ 
+            est, 
+            posicao, 
+            d0, 
+            d25: typeof d25 === 'number' ? d25.toFixed(2) : d25, 
+            r: typeof r === 'number' ? r.toFixed(2) : r, 
+            diag,
+            statusEstaca,
+            classeStatus
+        });
 
         renderTabelaBenkelman();
         atualizarEstatisticasBenkelman();
@@ -386,9 +415,10 @@
                 <td>${item.est}</td>
                 <td>${item.posicao}</td>
                 <td>${item.d0.toFixed(2)}</td>
-                <td>${item.d25.toFixed(2)}</td>
-                <td>${item.r.toFixed(2)}</td>
+                <td>${item.d25}</td>
+                <td>${item.r}</td>
                 <td>${item.diag}</td>
+                <td class="${item.classeStatus}">${item.statusEstaca}</td>
                 <td class="no-print"><button class="btn-del" onclick="excluirLinhaBenkelman(${index})">🗑️</button></td>
             </tr>`;
         });
